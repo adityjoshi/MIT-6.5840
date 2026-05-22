@@ -1,5 +1,7 @@
 package mr
 
+import "time"
+
 //
 // RPC definitions.
 //
@@ -37,3 +39,19 @@ const (
 	Assigned
 	Finished
 )
+
+type MapReduceTask struct {
+	Task      Task
+	Status    Status
+	TimeStamp time.Time
+	Index     int
+
+	InputFiles  []string
+	OutputFiles []string
+}
+
+type TaskReplyReq struct {
+	TaskNum int
+	Task    MapReduceTask
+	NReduce int
+}
