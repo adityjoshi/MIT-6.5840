@@ -1,11 +1,14 @@
 package mr
 
-import "fmt"
-import "log"
-import "net/rpc"
-import "hash/fnv"
-import "os"
-
+import (
+	"encoding/json"
+	"fmt"
+	"hash/fnv"
+	"io/ioutil"
+	"log"
+	"net/rpc"
+	"os"
+)
 
 // Map functions return a slice of KeyValue.
 type KeyValue struct {
@@ -23,17 +26,11 @@ func ihash(key string) int {
 
 var coordSockName string // socket for coordinator
 
-
 // main/mrworker.go calls this function.
 func Worker(sockname string, mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	coordSockName = sockname
-
-	// Your worker implementation here.
-
-	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
 
 }
 
@@ -62,6 +59,41 @@ func CallExample() {
 	} else {
 		fmt.Printf("call failed!\n")
 	}
+}
+
+func MapTask(reply *TaskReplyReq, mapf func(string, string) []KeyValue) {
+	file, err := os.Open(reply.Task.InputFiles[0])
+	if err != nil {
+		log.Fatalf("unable to open the given file %v", reply.Task.InputFiles[0])
+	}
+
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("unable to read the contents of the file")
+	}
+
+	file.Close()
+
+	kva := mapf(reply.Task.InputFiles[0], string(content))
+	intermediate := make([][]KeyValue, reply.NReduce)
+	for _, kv := range kva {
+		r := ihash(kv.Key) % reply.NReduce
+		intermediate[r] = append(intermediate[r], kv)
+	}
+
+	for r, kva := range intermediate {
+		outName := fmt.Sprintf("mr-%d-$d", reply.Task.Index, r)
+		outFile, _ := ioutil.TempFile("", outName)
+		enc := json.NewEncoder(outFile)
+		for _, kv := range kva {
+			enc.Encode(&kv)
+		}
+		outFile.Close()
+		os.Rename(outFile.Name(), outName)
+	}
+	reply.Task.Status = Finished
+	replyEx := TaskReplyReq{}
+	call("Coordinator.NotifyTaskComplete", &reply, &replyEx)
 }
 
 // send an RPC request to the coordinator, wait for the response.
