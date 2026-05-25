@@ -63,7 +63,7 @@ func CallExample() {
 	}
 }
 
-func MapTask(reply *TaskReplyReq, mapf func(string, s/redicetring) []KeyValue) {
+func MapTask(reply *TaskReplyReq, mapf func(string, string) []KeyValue) {
 	file, err := os.Open(reply.Task.InputFiles[0])
 	if err != nil {
 		log.Fatalf("unable to open the given file %v", reply.Task.InputFiles[0])
@@ -99,35 +99,46 @@ func MapTask(reply *TaskReplyReq, mapf func(string, s/redicetring) []KeyValue) {
 }
 
 func ReduceTask(reply *TaskReplyReq, reducef func(string, []string) string) {
+
+	/*
+	*
+	* intermediate will store all the key values pairs from all the map output
+	* */
 	intermediate := []KeyValue{}
 
 	for m := 0; m < len(reply.Task.InputFiles); m++ {
+		/*
+		*
+		* open every file assigned to the reducer
+		*
+		* */
 		file, err := os.Open(reply.Task.InputFiles[m])
 		if err != nil {
 			log.Fatalf("error opening the file %v", reply.Task.InputFiles[m])
 		}
 		decodeFile := json.NewDecoder(file)
 
-		for  {
+		for {
 			var kv KeyValue
 			if err := decodeFile.Decode(&kv); err != nil {
 				break
 			}
-			intermediate = append(intermediate,kv)
+			// appending everything into the intermediate fair
+			intermediate = append(intermediate, kv)
 		}
 		file.Close()
 	}
 
-	sort.Slice(intermediate, func (i,j int) bool  {
+	sort.Slice(intermediate, func(i, j int) bool {
 		return intermediate[i].Key < intermediate[j].Key
 	})
 
-	outName := fmt.Sprintf("mr-out-%d",reply.Task.Index)
-	outFile, _ := os.CreateTemp("",outName)
+	outName := fmt.Sprintf("mr-out-%d", reply.Task.Index)
+	outFile, _ := os.CreateTemp("", outName)
 
-	i := 0 
-	for i <len(intermediate) {
-		j := i+1
+	i := 0
+	for i < len(intermediate) {
+		j := i + 1
 		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
 			j++
 		}
@@ -135,7 +146,7 @@ func ReduceTask(reply *TaskReplyReq, reducef func(string, []string) string) {
 		for k := i; k < j; k++ {
 			values = append(values, intermediate[k].Value)
 		}
-		output := reducef(intermediate[i].Key,values)
+		output := reducef(intermediate[i].Key, values)
 		fmt.Fprintf(outFile, "%v %v\n", intermediate[i].Key, output)
 		i = j
 	}
