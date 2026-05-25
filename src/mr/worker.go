@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/rpc"
@@ -67,7 +68,7 @@ func MapTask(reply *TaskReplyReq, mapf func(string, string) []KeyValue) {
 		log.Fatalf("unable to open the given file %v", reply.Task.InputFiles[0])
 	}
 
-	content, err := ioutil.ReadAll(file)
+	content, err := io.ReadAll(file)
 	if err != nil {
 		log.Fatalf("unable to read the contents of the file")
 	}
@@ -82,8 +83,8 @@ func MapTask(reply *TaskReplyReq, mapf func(string, string) []KeyValue) {
 	}
 
 	for r, kva := range intermediate {
-		outName := fmt.Sprintf("mr-%d-$d", reply.Task.Index, r)
-		outFile, _ := ioutil.TempFile("", outName)
+		outName := fmt.Sprintf("mr-%d-%d", reply.Task.Index, r)
+		outFile, _ := os.CreateTemp("", outName)
 		enc := json.NewEncoder(outFile)
 		for _, kv := range kva {
 			enc.Encode(&kv)
