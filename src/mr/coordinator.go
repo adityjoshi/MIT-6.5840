@@ -1,15 +1,29 @@
 package mr
 
-import "log"
-import "net"
-import "os"
-import "net/rpc"
-import "net/http"
-
+import (
+	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
+	"sync"
+)
 
 type Coordinator struct {
-	// Your definitions here.
+	// Your definitions here
 
+	inputFiles []string
+	nReduce    int
+	mapTasks   []MapReduceTask
+	reduceTask []MapReduceTask
+
+	mapDone    int
+	reduceDone int
+
+	allMapComplete    bool
+	allReduceComplete bool
+
+	mutex sync.Mutex
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -21,7 +35,6 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 1
 	return nil
 }
-
 
 // start a thread that listens for RPCs from worker.go
 func (c *Coordinator) server(sockname string) {
@@ -42,7 +55,6 @@ func (c *Coordinator) Done() bool {
 
 	// Your code here.
 
-
 	return ret
 }
 
@@ -53,7 +65,6 @@ func MakeCoordinator(sockname string, files []string, nReduce int) *Coordinator 
 	c := Coordinator{}
 
 	// Your code here.
-
 
 	c.server(sockname)
 	return &c
