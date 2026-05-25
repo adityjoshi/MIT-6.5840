@@ -128,7 +128,7 @@ func ReduceTask(reply *TaskReplyReq, reducef func(string, []string) string) {
 		}
 		file.Close()
 	}
-
+	// sorting the intermediate array using key so that the same key comes together
 	sort.Slice(intermediate, func(i, j int) bool {
 		return intermediate[i].Key < intermediate[j].Key
 	})
@@ -139,6 +139,7 @@ func ReduceTask(reply *TaskReplyReq, reducef func(string, []string) string) {
 	i := 0
 	for i < len(intermediate) {
 		j := i + 1
+		// moving j ahead to find all same keys
 		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
 			j++
 		}
