@@ -97,6 +97,17 @@ func MapTask(reply *TaskReplyReq, mapf func(string, string) []KeyValue) {
 	call("Coordinator.NotifyTaskComplete", &reply, &replyEx)
 }
 
+func ReduceTask(reply *TaskReplyReq, reducef func(string, []string) string) {
+	intermediate := []KeyValue{}
+
+	for m := 0; m < len(reply.Task.InputFiles); m++ {
+		file, err := os.Open(reply.Task.InputFiles[m])
+		if err != nil {
+			log.Fatalf("error opening the file %v", reply.Task.InputFiles[m])
+		}
+	}
+}
+
 // send an RPC request to the coordinator, wait for the response.
 // usually returns true.
 // returns false if something goes wrong.
