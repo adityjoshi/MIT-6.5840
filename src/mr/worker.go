@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"sort"
 )
 
 // Map functions return a slice of KeyValue.
@@ -62,7 +63,7 @@ func CallExample() {
 	}
 }
 
-func MapTask(reply *TaskReplyReq, mapf func(string, string) []KeyValue) {
+func MapTask(reply *TaskReplyReq, mapf func(string, s/redicetring) []KeyValue) {
 	file, err := os.Open(reply.Task.InputFiles[0])
 	if err != nil {
 		log.Fatalf("unable to open the given file %v", reply.Task.InputFiles[0])
@@ -105,7 +106,45 @@ func ReduceTask(reply *TaskReplyReq, reducef func(string, []string) string) {
 		if err != nil {
 			log.Fatalf("error opening the file %v", reply.Task.InputFiles[m])
 		}
+		decodeFile := json.NewDecoder(file)
+
+		for  {
+			var kv KeyValue
+			if err := decodeFile.Decode(&kv); err != nil {
+				break
+			}
+			intermediate = append(intermediate,kv)
+		}
+		file.Close()
 	}
+
+	sort.Slice(intermediate, func (i,j int) bool  {
+		return intermediate[i].Key < intermediate[j].Key
+	})
+
+	outName := fmt.Sprintf("mr-out-%d",reply.Task.Index)
+	outFile, _ := os.CreateTemp("",outName)
+
+	i := 0 
+	for i <len(intermediate) {
+		j := i+1
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			j++
+		}
+		values := []string{}
+		for k := i; k < j; k++ {
+			values = append(values, intermediate[k].Value)
+		}
+		output := reducef(intermediate[i].Key,values)
+		fmt.Fprintf(outFile, "%v %v\n", intermediate[i].Key, output)
+		i = j
+	}
+	outFile.Close()
+	os.Rename(outFile.Name(), outName)
+
+	reply.Task.Status = Finished
+	replyEx := TaskReplyReq{}
+	call("Coordinator.NotifyTaskComplete", &reply, &replyEx)
 }
 
 // send an RPC request to the coordinator, wait for the response.
