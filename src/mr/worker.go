@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/rpc"
 	"os"
 	"sort"
+	"time"
 )
 
 // Map functions return a slice of KeyValue.
@@ -32,8 +32,29 @@ var coordSockName string // socket for coordinator
 func Worker(sockname string, mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
-	coordSockName = sockname
+	for {
+		args := TaskReplyReq{}
+		reply := TaskReplyReq{}
 
+		res := call("Coordinator.RequestTask", &args, &reply)
+
+		if !res {
+			break
+		}
+
+		switch reply.Task.Task {
+		case Map:
+			MapTask(&reply, mapf)
+		case Reduce:
+			ReduceTask(&reply, reducef)
+		case Wait:
+			time.Sleep(1 * time.Second)
+		case Exit:
+			os.Exit(0)
+		default:
+			time.Sleep(1 * time.Second)
+		}
+	}
 }
 
 // example function to show how to make an RPC call to the coordinator.
