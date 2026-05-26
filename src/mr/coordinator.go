@@ -1,12 +1,14 @@
 package mr
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
 	"sync"
+	"time"
 )
 
 type Coordinator struct {
@@ -74,6 +76,37 @@ func MakeCoordinator(sockname string, files []string, nReduce int) *Coordinator 
 		allReduceComplete: false,
 	}
 
+	for i := range c.mapTasks {
+		c.mapTasks[i] = MapReduceTask{
+			Task:        Map,
+			Status:      Unassigned,
+			TimeStamp:   time.Now(),
+			Index:       i,
+			InputFiles:  []string{files[i]},
+			OutputFiles: nil,
+		}
+	}
+
+	for i := range c.reduceTask {
+		c.reduceTask[i] = MapReduceTask{
+			Task:        Reduce,
+			Status:      Unassigned,
+			TimeStamp:   time.Now(),
+			Index:       i,
+			InputFiles:  generateInputFiles(i, len(files)),
+			OutputFiles: []string{fmt.Sprintf("mr-out-%d", i)},
+		}
+	}
+
 	c.server(sockname)
 	return &c
+}
+
+func generateInputFiles(i int, file int) []string {
+	var inputFiles []string
+
+	for j := 0; j < file; j++ {
+		inputFiles = append(inputFiles, fmt.Sprintf("mr-%d-%d", j, i))
+	}
+	return inputFiles
 }
